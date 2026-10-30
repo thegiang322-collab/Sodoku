@@ -1,0 +1,2158 @@
+<!DOCTYPE html>
+<html lang="vi" class="theme-matcha">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Chill Sudoku - Thư Giãn & Rèn Luyện Trí Não</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Phosphor Icons -->
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Space+Mono:wght@700&display=swap" rel="stylesheet">
+    
+    <style>
+        /* Thiết lập biến màu sắc theo Chủ đề (Themes) */
+        :root, html.theme-matcha {
+            --bg-main: #f4f7f4;
+            --bg-panel: #ffffff;
+            --bg-subtle: #e6efe6;
+            --text-main: #1e2923;
+            --text-muted: #647a6d;
+            --primary: #3b7a57;
+            --primary-hover: #2d6044;
+            --primary-light: #d3e8dc;
+            --accent: #e07a5f;
+            --board-border: #2a4736;
+            --cell-border: #d0dfd5;
+            --cell-selected: #a8d5ba;
+            --cell-related: #e9f2ec;
+            --cell-same: #c2e2ce;
+            --num-user: #2563eb;
+            --num-error: #dc2626;
+            --bg-error: #fee2e2;
+        }
+
+        html.theme-dark {
+            --bg-main: #0f172a;
+            --bg-panel: #1e293b;
+            --bg-subtle: #334155;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --primary: #6366f1;
+            --primary-hover: #4f46e5;
+            --primary-light: #312e81;
+            --accent: #f59e0b;
+            --board-border: #64748b;
+            --cell-border: #334155;
+            --cell-selected: #4338ca;
+            --cell-related: #1e293b;
+            --cell-same: #3730a3;
+            --num-user: #38bdf8;
+            --num-error: #f87171;
+            --bg-error: #450a0a;
+        }
+
+        html.theme-warm {
+            --bg-main: #fdf8f5;
+            --bg-panel: #ffffff;
+            --bg-subtle: #f5ebe6;
+            --text-main: #2d231e;
+            --text-muted: #8c7a70;
+            --primary: #d97757;
+            --primary-hover: #bf5f40;
+            --primary-light: #fae3dc;
+            --accent: #e9c46a;
+            --board-border: #4a3b32;
+            --cell-border: #e6d7cf;
+            --cell-selected: #f4bdad;
+            --cell-related: #f9f1ed;
+            --cell-same: #f7d1c6;
+            --num-user: #b45309;
+            --num-error: #dc2626;
+            --bg-error: #fef2f2;
+        }
+
+        * {
+            box-sizing: border-box;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            background-color: var(--bg-main);
+            color: var(--text-main);
+            transition: background-color 0.35s ease, color 0.35s ease;
+            overflow-x: hidden;
+        }
+
+        .bg-panel { background-color: var(--bg-panel); }
+        .bg-subtle { background-color: var(--bg-subtle); }
+        .text-main { color: var(--text-main); }
+        .text-muted { color: var(--text-muted); }
+        .btn-primary {
+            background-color: var(--primary);
+            color: #ffffff;
+            transition: all 0.2s ease;
+        }
+        .btn-primary:hover {
+            background-color: var(--primary-hover);
+            transform: translateY(-1px);
+        }
+
+        /* Bảng Sudoku 9x9 */
+        .sudoku-grid {
+            display: grid;
+            grid-template-columns: repeat(9, 1fr);
+            grid-template-rows: repeat(9, 1fr);
+            aspect-ratio: 1 / 1;
+            width: 100%;
+            max-width: 500px;
+            border: 3px solid var(--board-border);
+            border-radius: 14px;
+            overflow: hidden;
+            background-color: var(--bg-panel);
+            box-shadow: 0 12px 30px -8px rgba(0, 0, 0, 0.12);
+        }
+
+        .sudoku-cell {
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-right: 1px solid var(--cell-border);
+            border-bottom: 1px solid var(--cell-border);
+            font-size: clamp(1.2rem, 4.2vw, 1.85rem);
+            font-weight: 700;
+            cursor: pointer;
+            transition: background-color 0.12s ease, transform 0.1s ease;
+        }
+
+        /* Đường viền đậm chia khối 3x3 */
+        .sudoku-cell:nth-child(3n) {
+            border-right: 2.5px solid var(--board-border);
+        }
+        .sudoku-cell:nth-child(9n) {
+            border-right: none;
+        }
+        .sudoku-cell.row-border-bottom {
+            border-bottom: 2.5px solid var(--board-border);
+        }
+        .sudoku-cell.row-last {
+            border-bottom: none;
+        }
+
+        /* Trạng thái màu của ô */
+        .cell-related { background-color: var(--cell-related); }
+        .cell-same { background-color: var(--cell-same); }
+        .cell-selected { 
+            background-color: var(--cell-selected) !important;
+            box-shadow: inset 0 0 0 2px var(--primary);
+        }
+        .cell-error {
+            background-color: var(--bg-error) !important;
+            color: var(--num-error) !important;
+        }
+        .cell-user { color: var(--num-user); }
+        .cell-fixed { color: var(--text-main); }
+
+        /* Lưới ghi chú (Notes 3x3 bên trong 1 ô) */
+        .notes-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            grid-template-rows: repeat(3, 1fr);
+            width: 100%;
+            height: 100%;
+            padding: 2px;
+            pointer-events: none;
+        }
+        .note-num {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: clamp(0.5rem, 1.6vw, 0.72rem);
+            font-weight: 600;
+            color: var(--text-muted);
+            line-height: 1;
+        }
+        .note-highlight {
+            color: var(--primary);
+            font-weight: 800;
+            transform: scale(1.15);
+        }
+
+        /* Keyframe Animations */
+        @keyframes popIn {
+            0% { transform: scale(0.4); opacity: 0.3; }
+            65% { transform: scale(1.2); }
+            100% { transform: scale(1); opacity: 1; }
+        }
+        @keyframes errorShake {
+            0%, 100% { transform: translateX(0); }
+            20% { transform: translateX(-6px) rotate(-2deg); }
+            40% { transform: translateX(6px) rotate(2deg); }
+            60% { transform: translateX(-4px); }
+            80% { transform: translateX(4px); }
+        }
+        @keyframes celebrateWave {
+            0% { transform: scale(1); }
+            50% { transform: scale(0.88); background-color: var(--primary-light); }
+            100% { transform: scale(1); }
+        }
+        @keyframes pulseFlame {
+            0%, 100% { transform: scale(1); filter: drop-shadow(0 0 4px rgba(249, 115, 22, 0.4)); }
+            50% { transform: scale(1.14); filter: drop-shadow(0 0 10px rgba(249, 115, 22, 0.8)); }
+        }
+
+        .anim-pop { animation: popIn 0.26s cubic-bezier(0.34, 1.56, 0.64, 1); }
+        .anim-shake { animation: errorShake 0.38s ease-in-out; }
+        .anim-wave { animation: celebrateWave 0.55s ease-in-out; }
+        .flame-active { animation: pulseFlame 2s infinite ease-in-out; }
+
+        /* Nút bấm số 1-9 */
+        .numpad-btn {
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            background-color: var(--bg-panel);
+            border: 1.5px solid var(--cell-border);
+            border-radius: 14px;
+            padding: 8px 4px;
+            cursor: pointer;
+            transition: all 0.15s ease;
+            box-shadow: 0 3px 6px rgba(0,0,0,0.04);
+        }
+        .numpad-btn:hover:not(.numpad-completed) {
+            transform: translateY(-2px);
+            border-color: var(--primary);
+            background-color: var(--bg-subtle);
+        }
+        .numpad-btn:active:not(.numpad-completed) {
+            transform: translateY(0) scale(0.95);
+        }
+        .numpad-completed {
+            opacity: 0.28;
+            pointer-events: none;
+            transform: scale(0.95);
+        }
+
+        /* Bóng nhạc Lofi đang phát */
+        .eq-bar {
+            width: 3px;
+            background-color: var(--primary);
+            border-radius: 2px;
+            animation: eqBounce 0.9s infinite ease-in-out;
+        }
+        .eq-bar:nth-child(2) { animation-delay: 0.2s; }
+        .eq-bar:nth-child(3) { animation-delay: 0.4s; }
+        @keyframes eqBounce {
+            0%, 100% { height: 5px; }
+            50% { height: 14px; }
+        }
+
+        /* Thanh cuộn tinh tế */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: rgba(150, 150, 150, 0.3); border-radius: 9999px; }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col justify-between">
+
+    <!-- Canvas bắn pháo hoa khi chiến thắng -->
+    <canvas id="confetti-canvas" class="fixed inset-0 pointer-events-none z-50 hidden"></canvas>
+
+    <!-- Toast Thông báo -->
+    <div id="toast-container" class="fixed top-4 left-1/2 -translate-x-1/2 z-50 flex flex-col gap-2 pointer-events-none w-11/12 max-w-md"></div>
+
+    <!-- HEADER / THANH ĐIỀU HƯỚNG -->
+    <header class="w-full max-w-6xl mx-auto px-4 pt-3 pb-2 flex flex-wrap items-center justify-between gap-2">
+        <!-- Logo & Tên Game -->
+        <div class="flex items-center gap-2.5">
+            <div class="w-10 h-10 rounded-xl btn-primary flex items-center justify-center shadow-md">
+                <i class="ph-fill ph-grid-four text-2xl"></i>
+            </div>
+            <div>
+                <div class="flex items-center gap-2">
+                    <h1 class="text-lg sm:text-xl font-extrabold tracking-tight leading-none">Chill Sudoku</h1>
+                    <span class="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-subtle text-muted">VN Edition</span>
+                </div>
+                <p class="text-xs text-muted hidden sm:block">Thư giãn tâm trí mỗi ngày cùng giai điệu Lofi</p>
+            </div>
+        </div>
+
+        <!-- Cụm nút chức năng trên Header -->
+        <div class="flex items-center gap-2">
+            <!-- Chuỗi Ngày (Streak) -->
+            <button onclick="openModal('daily-modal')" class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-panel border border-orange-400/30 shadow-sm hover:scale-105 transition" title="Chuỗi ngày & Nhiệm vụ hàng ngày">
+                <i id="streak-icon" class="ph-fill ph-fire text-xl text-orange-500 flame-active"></i>
+                <div class="text-left">
+                    <div class="text-[10px] uppercase tracking-wider font-bold text-muted leading-none">Chuỗi</div>
+                    <div class="text-xs sm:text-sm font-extrabold leading-tight"><span id="header-streak-count">0</span> ngày</div>
+                </div>
+                <span id="mission-badge-dot" class="w-2 h-2 rounded-full bg-red-500 hidden"></span>
+            </button>
+
+            <!-- Bộ phát nhạc Lofi Chill -->
+            <div class="flex items-center bg-panel rounded-xl p-1 border border-gray-400/20 shadow-sm">
+                <button id="btn-lofi-toggle" onclick="toggleChillMusic()" class="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg hover:bg-subtle transition text-xs sm:text-sm font-semibold" title="Bật/Tắt nhạc nền Lofi Chill">
+                    <i id="lofi-icon" class="ph-fill ph-headphones text-lg text-emerald-600"></i>
+                    <span class="hidden md:inline">Chill Lofi</span>
+                    <!-- Sóng nhạc hiển thị khi đang phát -->
+                    <div id="lofi-eq" class="hidden items-end gap-0.5 h-3.5 ml-1">
+                        <div class="eq-bar"></div>
+                        <div class="eq-bar"></div>
+                        <div class="eq-bar"></div>
+                    </div>
+                </button>
+                <!-- Nút chỉnh âm lượng & SFX -->
+                <button onclick="openModal('audio-modal')" class="p-1.5 rounded-lg hover:bg-subtle text-muted hover:text-main transition" title="Cài đặt âm thanh & Giao diện">
+                    <i class="ph ph-sliders-horizontal text-lg"></i>
+                </button>
+            </div>
+
+            <!-- Đổi chủ đề màu nhanh -->
+            <button onclick="cycleTheme()" class="p-2 rounded-xl bg-panel border border-gray-400/20 shadow-sm hover:scale-105 transition" title="Đổi giao diện (Matcha / Tối / Nắng Ấm)">
+                <i id="theme-icon" class="ph-fill ph-palette text-lg"></i>
+            </button>
+        </div>
+    </header>
+
+    <!-- NỘI DUNG CHÍNH -->
+    <main class="flex-1 w-full max-w-6xl mx-auto px-3 sm:px-4 py-2 flex flex-col lg:flex-row items-center lg:items-start justify-center gap-6">
+        
+        <!-- CỘT TRÁI: BẢNG SUDOKU & THANH TRẠNG THÁI VÁN CHƠI -->
+        <div class="w-full max-w-[500px] flex flex-col items-center">
+            
+            <!-- Thanh chọn Cấp độ & Ván mới -->
+            <div class="w-full flex items-center justify-between gap-1 bg-panel p-1.5 rounded-2xl shadow-sm border border-gray-400/15 mb-2.5">
+                <div class="flex items-center gap-1 overflow-x-auto no-scrollbar">
+                    <button onclick="requestNewGame('easy')" data-diff="easy" class="diff-tab px-3 py-1.5 rounded-xl text-xs sm:text-sm font-bold transition">Dễ</button>
+                    <button onclick="requestNewGame('medium')" data-diff="medium" class="diff-tab px-3 py-1.5 rounded-xl text-xs sm:text-sm font-bold transition">Trung bình</button>
+                    <button onclick="requestNewGame('hard')" data-diff="hard" class="diff-tab px-3 py-1.5 rounded-xl text-xs sm:text-sm font-bold transition">Khó</button>
+                    <button onclick="requestNewGame('expert')" data-diff="expert" class="diff-tab px-3 py-1.5 rounded-xl text-xs sm:text-sm font-bold transition">Chuyên gia</button>
+                </div>
+                <button onclick="openModal('newgame-modal')" class="flex items-center gap-1 px-2.5 py-1.5 rounded-xl btn-primary text-xs font-bold shrink-0 shadow-sm">
+                    <i class="ph-bold ph-plus"></i>
+                    <span>Ván mới</span>
+                </button>
+            </div>
+
+            <!-- Thanh Thông số: Lỗi sai, Điểm số, Đồng hồ -->
+            <div class="w-full grid grid-cols-3 gap-2 mb-2.5 text-xs sm:text-sm">
+                <!-- Giới hạn lỗi sai (Có thể bấm để đổi ngay) -->
+                <button onclick="cycleMistakeLimit()" class="bg-panel px-3 py-2 rounded-xl border border-gray-400/15 flex items-center justify-between hover:border-red-400/50 transition group" title="Nhấn để đổi giới hạn lỗi (3 lỗi / 5 lỗi / Không giới hạn)">
+                    <div class="text-left">
+                        <div class="text-[10px] text-muted font-semibold flex items-center gap-1">
+                            <span>Lỗi sai</span>
+                            <i class="ph-bold ph-arrows-clockwise text-[10px] opacity-60 group-hover:rotate-180 transition-transform"></i>
+                        </div>
+                        <div id="mistakes-display" class="font-extrabold text-sm sm:text-base">0 / 3</div>
+                    </div>
+                    <i class="ph-fill ph-warning-circle text-lg text-red-400"></i>
+                </button>
+
+                <!-- Điểm thưởng -->
+                <div class="bg-panel px-3 py-2 rounded-xl border border-gray-400/15 flex items-center justify-between">
+                    <div>
+                        <div class="text-[10px] text-muted font-semibold">Điểm số</div>
+                        <div id="score-display" class="font-extrabold text-sm sm:text-base font-mono">0</div>
+                    </div>
+                    <i class="ph-fill ph-sparkle text-lg text-amber-400"></i>
+                </div>
+
+                <!-- Đồng hồ & Tạm dừng -->
+                <button onclick="togglePauseGame()" class="bg-panel px-3 py-2 rounded-xl border border-gray-400/15 flex items-center justify-between hover:bg-subtle transition" title="Tạm dừng / Tiếp tục">
+                    <div class="text-left">
+                        <div class="text-[10px] text-muted font-semibold">Thời gian</div>
+                        <div id="timer-display" class="font-extrabold text-sm sm:text-base font-mono">00:00</div>
+                    </div>
+                    <div class="w-7 h-7 rounded-lg bg-subtle flex items-center justify-center">
+                        <i id="pause-icon" class="ph-fill ph-pause text-sm"></i>
+                    </div>
+                </button>
+            </div>
+
+            <!-- KHUNG BẢNG SUDOKU 9x9 -->
+            <div class="relative w-full">
+                <div id="sudoku-board" class="sudoku-grid">
+                    <!-- 81 ô sẽ được tạo tự động bằng JavaScript -->
+                </div>
+
+                <!-- Lớp phủ khi Tạm dừng (Pause Overlay) -->
+                <div id="pause-overlay" class="hidden absolute inset-0 rounded-2xl bg-panel/95 backdrop-blur-md z-20 flex flex-col items-center justify-center p-6 text-center border-2 border-gray-400/20">
+                    <div class="w-16 h-16 rounded-2xl bg-subtle flex items-center justify-center mb-4">
+                        <i class="ph-fill ph-coffee text-4xl" style="color: var(--primary)"></i>
+                    </div>
+                    <h3 class="text-xl font-extrabold mb-1">Đang tạm dừng nghỉ ngơi</h3>
+                    <p class="text-sm text-muted max-w-xs mb-6">Hãy hít một hơi thật sâu, thưởng thức chút nhạc Lofi và tiếp tục khi bạn đã sẵn sàng nhé!</p>
+                    <button onclick="togglePauseGame()" class="px-6 py-3 rounded-xl btn-primary font-bold flex items-center gap-2 shadow-lg">
+                        <i class="ph-fill ph-play text-lg"></i>
+                        <span>Tiếp tục chơi</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- CỘT PHẢI: BỘ ĐIỀU KHIỂN, BÀN PHÍM SỐ & NHIỆM VỤ HÀNG NGÀY -->
+        <div class="w-full max-w-[500px] lg:max-w-[380px] flex flex-col gap-4">
+            
+            <!-- Các nút công cụ: Hoàn tác, Xóa, Ghi chú, Gợi ý -->
+            <div class="grid grid-cols-4 gap-2.5">
+                <!-- Hoàn tác (Undo) -->
+                <button onclick="handleUndo()" class="flex flex-col items-center justify-center py-2.5 px-2 rounded-2xl bg-panel border border-gray-400/15 shadow-sm hover:bg-subtle active:scale-95 transition relative">
+                    <i class="ph-bold ph-arrow-u-up-left text-xl sm:text-2xl mb-1"></i>
+                    <span class="text-xs font-bold">Hoàn tác</span>
+                    <span id="undo-count-badge" class="absolute top-1.5 right-2 text-[10px] font-bold text-muted">0</span>
+                </button>
+
+                <!-- Xóa (Erase) -->
+                <button onclick="handleErase()" class="flex flex-col items-center justify-center py-2.5 px-2 rounded-2xl bg-panel border border-gray-400/15 shadow-sm hover:bg-subtle active:scale-95 transition">
+                    <i class="ph-bold ph-eraser text-xl sm:text-2xl mb-1"></i>
+                    <span class="text-xs font-bold">Xóa ô</span>
+                </button>
+
+                <!-- Ghi chú (Notes) -->
+                <button id="btn-note-mode" onclick="toggleNoteMode()" class="flex flex-col items-center justify-center py-2.5 px-2 rounded-2xl bg-panel border border-gray-400/15 shadow-sm hover:bg-subtle active:scale-95 transition relative">
+                    <i class="ph-bold ph-pencil-Line text-xl sm:text-2xl mb-1"></i>
+                    <span class="text-xs font-bold">Ghi chú</span>
+                    <span id="note-status-badge" class="absolute top-1.5 right-1.5 px-1.5 py-0.2 rounded-full text-[9px] font-extrabold bg-subtle text-muted">TẮT</span>
+                </button>
+
+                <!-- Gợi ý (Hint) -->
+                <button onclick="handleHint()" class="flex flex-col items-center justify-center py-2.5 px-2 rounded-2xl bg-panel border border-gray-400/15 shadow-sm hover:bg-subtle active:scale-95 transition relative">
+                    <i class="ph-bold ph-lightbulb-filament text-xl sm:text-2xl mb-1 text-amber-500"></i>
+                    <span class="text-xs font-bold">Gợi ý</span>
+                    <span id="hint-count-badge" class="absolute top-1.5 right-1.5 w-5 h-5 rounded-full text-[10px] font-extrabold flex items-center justify-center btn-primary">3</span>
+                </button>
+            </div>
+
+            <!-- Bàn phím số 1 - 9 -->
+            <div class="bg-panel p-3 rounded-2xl border border-gray-400/15 shadow-sm">
+                <div class="flex items-center justify-between mb-2 px-1">
+                    <span class="text-xs font-bold text-muted uppercase tracking-wider">Bàn phím số</span>
+                    <label class="flex items-center gap-1.5 cursor-pointer text-xs text-muted">
+                        <input type="checkbox" id="chk-auto-notes" checked onchange="toggleAutoCleanNotes()" class="rounded accent-emerald-600">
+                        <span>Tự xóa ghi chú trùng</span>
+                    </label>
+                </div>
+                <div id="numpad-container" class="grid grid-cols-9 lg:grid-cols-3 gap-1.5 sm:gap-2">
+                    <!-- Nút 1-9 được render động kèm số lượng còn lại -->
+                </div>
+            </div>
+
+            <!-- Khung Nhiệm vụ Hàng ngày & Chuỗi Ngày (Hiển thị trực tiếp trên màn hình) -->
+            <div class="bg-panel p-4 rounded-2xl border border-gray-400/15 shadow-sm">
+                <div class="flex items-center justify-between mb-3">
+                    <div class="flex items-center gap-2">
+                        <i class="ph-fill ph-calendar-check text-xl" style="color: var(--primary)"></i>
+                        <h2 class="text-sm font-extrabold">Nhiệm vụ Hàng ngày</h2>
+                    </div>
+                    <button onclick="openModal('daily-modal')" class="text-xs font-bold hover:underline" style="color: var(--primary)">
+                        Chi tiết & Chuỗi <i class="ph-bold ph-caret-right"></i>
+                    </button>
+                </div>
+
+                <!-- Danh sách 3 nhiệm vụ trong ngày -->
+                <div id="inline-missions-list" class="flex flex-col gap-2.5">
+                    <!-- Render bằng JS -->
+                </div>
+            </div>
+
+            <!-- Mẹo điều khiển bàn phím -->
+            <div class="hidden lg:flex items-center justify-between px-3 py-2 rounded-xl bg-subtle/70 text-[11px] text-muted">
+                <span><kbd class="px-1.5 py-0.5 rounded bg-panel font-bold">1-9</kbd> Nhập số</span>
+                <span><kbd class="px-1.5 py-0.5 rounded bg-panel font-bold">N</kbd> Ghi chú</span>
+                <span><kbd class="px-1.5 py-0.5 rounded bg-panel font-bold">Z</kbd> Hoàn tác</span>
+                <span><kbd class="px-1.5 py-0.5 rounded bg-panel font-bold">Del</kbd> Xóa</span>
+            </div>
+        </div>
+    </main>
+
+    <!-- FOOTER -->
+    <footer class="w-full text-center py-3 text-xs text-muted">
+        <span>Chill Sudoku &bull; Âm thanh Web Audio Lofi &bull; Lưu tiến trình tự động</span>
+    </footer>
+
+    <!-- ==========================================
+         CÁC HỘP THOẠI MODAL
+         ========================================== -->
+
+    <!-- 1. MODAL CHUỖI NGÀY & NHIỆM VỤ HÀNG NGÀY -->
+    <div id="daily-modal" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 hidden items-center justify-center p-4">
+        <div class="bg-panel w-full max-w-md rounded-3xl p-6 shadow-2xl border border-gray-400/20 animate-[popIn_0.2s_ease-out]">
+            <div class="flex items-center justify-between mb-4">
+                <div class="flex items-center gap-2">
+                    <i class="ph-fill ph-fire text-2xl text-orange-500"></i>
+                    <h3 class="text-lg font-extrabold">Chuỗi Ngày & Thử Thách</h3>
+                </div>
+                <button onclick="closeModal('daily-modal')" class="w-8 h-8 rounded-full bg-subtle flex items-center justify-center hover:opacity-80">
+                    <i class="ph-bold ph-x"></i>
+                </button>
+            </div>
+
+            <!-- Thẻ Streak nổi bật -->
+            <div class="p-4 rounded-2xl bg-gradient-to-br from-orange-500/15 to-amber-500/10 border border-orange-500/30 mb-5 flex items-center justify-between">
+                <div>
+                    <div class="text-xs font-bold uppercase tracking-wider text-orange-600 dark:text-orange-400">Chuỗi hiện tại</div>
+                    <div class="text-3xl font-extrabold mt-0.5"><span id="modal-streak-current">0</span> Ngày</div>
+                    <div id="streak-today-status" class="text-xs text-muted mt-1">Hoàn thành 1 ván hôm nay để nối chuỗi!</div>
+                </div>
+                <div class="text-right">
+                    <div class="text-xs text-muted font-semibold">Kỷ lục cao nhất</div>
+                    <div class="text-lg font-extrabold text-amber-600 dark:text-amber-400"><span id="modal-streak-best">0</span> ngày</div>
+                    <div class="text-xs text-muted mt-1">Tổng thắng: <span id="modal-total-wins" class="font-bold">0</span> ván</div>
+                </div>
+            </div>
+
+            <!-- Lịch 7 ngày gần nhất -->
+            <div class="mb-5">
+                <div class="text-xs font-bold text-muted uppercase tracking-wider mb-2">7 Ngày gần đây</div>
+                <div id="week-streak-grid" class="grid grid-cols-7 gap-1.5 text-center">
+                    <!-- Render bằng JS -->
+                </div>
+            </div>
+
+            <!-- Danh sách Nhiệm vụ chi tiết -->
+            <div>
+                <div class="flex items-center justify-between mb-2">
+                    <span class="text-xs font-bold text-muted uppercase tracking-wider">Nhiệm vụ hôm nay</span>
+                    <span id="daily-date-label" class="text-xs font-semibold text-muted"></span>
+                </div>
+                <div id="modal-missions-list" class="flex flex-col gap-2.5">
+                    <!-- Render bằng JS -->
+                </div>
+            </div>
+
+            <button onclick="closeModal('daily-modal')" class="w-full mt-5 py-3 rounded-xl btn-primary font-bold">
+                Đóng
+            </button>
+        </div>
+    </div>
+
+    <!-- 2. MODAL TÙY CHỈNH VÁN MỚI & GIỚI HẠN LỖI SAI -->
+    <div id="newgame-modal" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 hidden items-center justify-center p-4">
+        <div class="bg-panel w-full max-w-sm rounded-3xl p-6 shadow-2xl border border-gray-400/20 animate-[popIn_0.2s_ease-out]">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="text-lg font-extrabold">Thiết Lập Ván Mới</h3>
+                <button onclick="closeModal('newgame-modal')" class="w-8 h-8 rounded-full bg-subtle flex items-center justify-center">
+                    <i class="ph-bold ph-x"></i>
+                </button>
+            </div>
+
+            <!-- Chọn giới hạn lỗi sai trước khi bắt đầu -->
+            <div class="mb-5">
+                <label class="block text-xs font-bold uppercase tracking-wider text-muted mb-2">Giới hạn số lỗi sai kết thúc game</label>
+                <div class="grid grid-cols-3 gap-2">
+                    <button onclick="setMistakeLimitOption(3)" data-limit="3" class="limit-opt-btn py-2.5 px-2 rounded-xl border text-xs font-bold transition flex flex-col items-center gap-1">
+                        <i class="ph-bold ph-shield-warning text-lg text-red-500"></i>
+                        <span>3 Lỗi sai</span>
+                    </button>
+                    <button onclick="setMistakeLimitOption(5)" data-limit="5" class="limit-opt-btn py-2.5 px-2 rounded-xl border text-xs font-bold transition flex flex-col items-center gap-1">
+                        <i class="ph-bold ph-shield-check text-lg text-amber-500"></i>
+                        <span>5 Lỗi sai</span>
+                    </button>
+                    <button onclick="setMistakeLimitOption(0)" data-limit="0" class="limit-opt-btn py-2.5 px-2 rounded-xl border text-xs font-bold transition flex flex-col items-center gap-1">
+                        <i class="ph-bold ph-infinity text-lg text-emerald-500"></i>
+                        <span>Vô hạn</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Chọn cấp độ -->
+            <div class="mb-2">
+                <label class="block text-xs font-bold uppercase tracking-wider text-muted mb-2">Chọn cấp độ thử thách</label>
+                <div class="flex flex-col gap-2">
+                    <button onclick="startNewGame('easy'); closeModal('newgame-modal')" class="w-full p-3 rounded-xl bg-subtle hover:opacity-90 flex items-center justify-between transition">
+                        <div class="flex items-center gap-3">
+                            <span class="w-3 h-3 rounded-full bg-emerald-500"></span>
+                            <div class="text-left">
+                                <div class="font-bold text-sm">Cấp độ Dễ</div>
+                                <div class="text-[11px] text-muted">Khởi động nhẹ nhàng (43 ô cho sẵn)</div>
+                            </div>
+                        </div>
+                        <i class="ph-bold ph-caret-right"></i>
+                    </button>
+
+                    <button onclick="startNewGame('medium'); closeModal('newgame-modal')" class="w-full p-3 rounded-xl bg-subtle hover:opacity-90 flex items-center justify-between transition">
+                        <div class="flex items-center gap-3">
+                            <span class="w-3 h-3 rounded-full bg-blue-500"></span>
+                            <div class="text-left">
+                                <div class="font-bold text-sm">Trung Bình</div>
+                                <div class="text-[11px] text-muted">Cân bằng tư duy (34 ô cho sẵn)</div>
+                            </div>
+                        </div>
+                        <i class="ph-bold ph-caret-right"></i>
+                    </button>
+
+                    <button onclick="startNewGame('hard'); closeModal('newgame-modal')" class="w-full p-3 rounded-xl bg-subtle hover:opacity-90 flex items-center justify-between transition">
+                        <div class="flex items-center gap-3">
+                            <span class="w-3 h-3 rounded-full bg-amber-500"></span>
+                            <div class="text-left">
+                                <div class="font-bold text-sm">Cấp độ Khó</div>
+                                <div class="text-[11px] text-muted">Thử thách suy luận (28 ô cho sẵn)</div>
+                            </div>
+                        </div>
+                        <i class="ph-bold ph-caret-right"></i>
+                    </button>
+
+                    <button onclick="startNewGame('expert'); closeModal('newgame-modal')" class="w-full p-3 rounded-xl bg-subtle hover:opacity-90 flex items-center justify-between transition">
+                        <div class="flex items-center gap-3">
+                            <span class="w-3 h-3 rounded-full bg-purple-500"></span>
+                            <div class="text-left">
+                                <div class="font-bold text-sm">Chuyên Gia</div>
+                                <div class="text-[11px] text-muted">Đỉnh cao logic (23 ô cho sẵn)</div>
+                            </div>
+                        </div>
+                        <i class="ph-bold ph-caret-right"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 3. MODAL CÀI ĐẶT ÂM THANH LOFI & GIAO DIỆN -->
+    <div id="audio-modal" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 hidden items-center justify-center p-4">
+        <div class="bg-panel w-full max-w-sm rounded-3xl p-6 shadow-2xl border border-gray-400/20 animate-[popIn_0.2s_ease-out]">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="text-lg font-extrabold">Âm Thanh Chill & Cài Đặt</h3>
+                <button onclick="closeModal('audio-modal')" class="w-8 h-8 rounded-full bg-subtle flex items-center justify-center">
+                    <i class="ph-bold ph-x"></i>
+                </button>
+            </div>
+
+            <!-- Điều khiển Nhạc Lofi -->
+            <div class="p-4 rounded-2xl bg-subtle mb-4">
+                <div class="flex items-center justify-between mb-3">
+                    <div class="flex items-center gap-2">
+                        <i class="ph-fill ph-vinyl-record text-xl" style="color: var(--primary)"></i>
+                        <div>
+                            <div class="text-sm font-bold">Nhạc nền Lofi Synth</div>
+                            <div class="text-[11px] text-muted">Hợp âm Rhodes & Tiếng đĩa than</div>
+                        </div>
+                    </div>
+                    <button id="modal-lofi-btn" onclick="toggleChillMusic()" class="px-3 py-1.5 rounded-xl btn-primary text-xs font-bold">
+                        Bật nhạc
+                    </button>
+                </div>
+                <div class="flex items-center gap-3">
+                    <i class="ph-fill ph-speaker-low text-muted"></i>
+                    <input id="music-volume-slider" type="range" min="0" max="100" value="45" oninput="updateMusicVolume(this.value)" class="w-full accent-emerald-600 cursor-pointer">
+                    <i class="ph-fill ph-speaker-high text-muted"></i>
+                </div>
+            </div>
+
+            <!-- Hiệu ứng âm thanh (SFX) -->
+            <div class="p-4 rounded-2xl bg-subtle mb-4 flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                    <i class="ph-fill ph-bell-ringing text-xl" style="color: var(--primary)"></i>
+                    <div>
+                        <div class="text-sm font-bold">Hiệu ứng âm thanh (SFX)</div>
+                        <div class="text-[11px] text-muted">Âm thanh khi nhập số, ghi chú, báo lỗi</div>
+                    </div>
+                </div>
+                <input type="checkbox" id="chk-sfx-toggle" checked onchange="toggleSfx(this.checked)" class="w-5 h-5 accent-emerald-600 cursor-pointer">
+            </div>
+
+            <!-- Chọn Chủ đề màu sắc -->
+            <div class="mb-4">
+                <label class="block text-xs font-bold uppercase tracking-wider text-muted mb-2">Chủ đề không gian</label>
+                <div class="grid grid-cols-3 gap-2">
+                    <button onclick="setTheme('theme-matcha')" class="p-2.5 rounded-xl border border-gray-400/30 flex flex-col items-center gap-1 hover:scale-105 transition">
+                        <span class="w-6 h-6 rounded-full bg-[#3b7a57] border-2 border-white shadow"></span>
+                        <span class="text-xs font-bold">Matcha Chill</span>
+                    </button>
+                    <button onclick="setTheme('theme-dark')" class="p-2.5 rounded-xl border border-gray-400/30 flex flex-col items-center gap-1 hover:scale-105 transition">
+                        <span class="w-6 h-6 rounded-full bg-[#1e293b] border-2 border-indigo-400 shadow"></span>
+                        <span class="text-xs font-bold">Đêm Yên Tĩnh</span>
+                    </button>
+                    <button onclick="setTheme('theme-warm')" class="p-2.5 rounded-xl border border-gray-400/30 flex flex-col items-center gap-1 hover:scale-105 transition">
+                        <span class="w-6 h-6 rounded-full bg-[#d97757] border-2 border-amber-200 shadow"></span>
+                        <span class="text-xs font-bold">Nắng Ấm</span>
+                    </button>
+                </div>
+            </div>
+
+            <button onclick="closeModal('audio-modal')" class="w-full py-2.5 rounded-xl btn-primary font-bold">
+                Hoàn tất
+            </button>
+        </div>
+    </div>
+
+    <!-- 4. MODAL KẾT THÚC VÁN CHƠI (CHIẾN THẮNG HOẶC QUÁ SỐ LỖI) -->
+    <div id="result-modal" class="fixed inset-0 bg-black/65 backdrop-blur-sm z-40 hidden items-center justify-center p-4">
+        <div class="bg-panel w-full max-w-sm rounded-3xl p-6 shadow-2xl border border-gray-400/20 text-center animate-[popIn_0.25s_ease-out]">
+            <div id="result-icon-wrap" class="w-16 h-16 rounded-2xl mx-auto mb-3 flex items-center justify-center bg-emerald-500/15 text-emerald-500">
+                <i id="result-icon" class="ph-fill ph-trophy text-4xl"></i>
+            </div>
+            <h3 id="result-title" class="text-2xl font-extrabold mb-1">Tuyệt Vời!</h3>
+            <p id="result-subtitle" class="text-xs sm:text-sm text-muted mb-5">Bạn đã hoàn thành xuất sắc bảng Sudoku.</p>
+
+            <!-- Thông số kết quả -->
+            <div class="grid grid-cols-3 gap-2 bg-subtle p-3 rounded-2xl mb-4">
+                <div>
+                    <div class="text-[10px] text-muted font-bold uppercase">Cấp độ</div>
+                    <div id="res-diff" class="font-extrabold text-sm mt-0.5">Dễ</div>
+                </div>
+                <div>
+                    <div class="text-[10px] text-muted font-bold uppercase">Thời gian</div>
+                    <div id="res-time" class="font-extrabold text-sm mt-0.5 font-mono">02:15</div>
+                </div>
+                <div>
+                    <div class="text-[10px] text-muted font-bold uppercase">Lỗi sai</div>
+                    <div id="res-mistakes" class="font-extrabold text-sm mt-0.5">0/3</div>
+                </div>
+            </div>
+
+            <!-- Thông báo tăng chuỗi ngày nếu có -->
+            <div id="res-streak-banner" class="hidden items-center justify-center gap-2 py-2.5 px-3 rounded-xl bg-orange-500/15 border border-orange-500/30 text-orange-600 dark:text-orange-400 text-xs font-extrabold mb-4">
+                <i class="ph-fill ph-fire text-lg"></i>
+                <span id="res-streak-text">Chuỗi ngày đã tăng lên 1 ngày!</span>
+            </div>
+
+            <div class="flex flex-col gap-2">
+                <button onclick="closeModal('result-modal'); openModal('newgame-modal')" class="w-full py-3 rounded-xl btn-primary font-bold shadow-md">
+                    Chơi ván mới
+                </button>
+                <button id="btn-second-chance" onclick="continueWithExtraLives()" class="hidden w-full py-2.5 rounded-xl bg-subtle font-bold text-xs hover:opacity-90">
+                    Tiếp tục ván này (Đổi sang Không giới hạn lỗi)
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==========================================
+         MÃ NGUỒN JAVASCRIPT CHÍNH
+         ========================================== -->
+    <script>
+        /**
+         * 1. BỘ TẠO ÂM THANH LOFI CHILL & SFX (WEB AUDIO API)
+         * Không phụ thuộc file MP3 bên ngoài, tự tổng hợp hợp âm Jazz Lofi + tiếng đĩa than.
+         */
+        class ChillAudioEngine {
+            constructor() {
+                this.ctx = null;
+                this.isPlayingMusic = false;
+                this.sfxEnabled = true;
+                this.musicVolume = 0.45;
+                this.masterMusicGain = null;
+                this.chordTimer = null;
+                this.crackleNode = null;
+                this.chordIndex = 0;
+
+                // Vòng hợp âm Lofi thư giãn (Dm9 - G13 - Cmaj9 - A7alt)
+                this.chords = [
+                    [293.66, 349.23, 440.00, 523.25, 659.25], // Dm9
+                    [196.00, 349.23, 440.00, 493.88, 659.25], // G13
+                    [261.63, 329.63, 392.00, 493.88, 587.33], // Cmaj9
+                    [220.00, 329.63, 392.00, 466.16, 554.37]  // A7b9
+                ];
+            }
+
+            initContext() {
+                if (!this.ctx) {
+                    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+                    this.ctx = new AudioCtx();
+                    this.masterMusicGain = this.ctx.createGain();
+                    this.masterMusicGain.gain.value = this.musicVolume * 0.25;
+                    this.masterMusicGain.connect(this.ctx.destination);
+                }
+                if (this.ctx.state === 'suspended') {
+                    this.ctx.resume();
+                }
+            }
+
+            setVolume(val0to100) {
+                this.musicVolume = val0to100 / 100;
+                if (this.masterMusicGain && this.ctx) {
+                    this.masterMusicGain.gain.setTargetAtTime(this.musicVolume * 0.25, this.ctx.currentTime, 0.1);
+                }
+            }
+
+            toggleMusic() {
+                this.initContext();
+                if (this.isPlayingMusic) {
+                    this.stopMusic();
+                } else {
+                    this.startMusic();
+                }
+                return this.isPlayingMusic;
+            }
+
+            startMusic() {
+                this.initContext();
+                if (this.isPlayingMusic) return;
+                this.isPlayingMusic = true;
+
+                // Tạo tiếng đĩa than (Vinyl crackle) dịu nhẹ
+                this.startVinylCrackle();
+
+                // Phát hợp âm đầu tiên và lặp mỗi 3.8 giây
+                this.playNextChord();
+                this.chordTimer = setInterval(() => {
+                    if (this.isPlayingMusic) this.playNextChord();
+                }, 3800);
+            }
+
+            stopMusic() {
+                this.isPlayingMusic = false;
+                if (this.chordTimer) {
+                    clearInterval(this.chordTimer);
+                    this.chordTimer = null;
+                }
+                if (this.crackleNode) {
+                    try { this.crackleNode.stop(); } catch (e) {}
+                    this.crackleNode = null;
+                }
+            }
+
+            startVinylCrackle() {
+                if (!this.ctx) return;
+                const bufferSize = this.ctx.sampleRate * 3;
+                const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+                const data = buffer.getChannelData(0);
+                for (let i = 0; i < bufferSize; i++) {
+                    // Tiếng nổ đĩa than thưa và êm
+                    data[i] = Math.random() < 0.004 ? (Math.random() * 2 - 1) * 0.18 : (Math.random() * 2 - 1) * 0.012;
+                }
+
+                const noise = this.ctx.createBufferSource();
+                noise.buffer = buffer;
+                noise.loop = true;
+
+                const filter = this.ctx.createBiquadFilter();
+                filter.type = 'bandpass';
+                filter.frequency.value = 1400;
+
+                const gain = this.ctx.createGain();
+                gain.gain.value = 0.25;
+
+                noise.connect(filter);
+                filter.connect(gain);
+                gain.connect(this.masterMusicGain);
+                noise.start();
+                this.crackleNode = noise;
+            }
+
+            playNextChord() {
+                if (!this.ctx || !this.isPlayingMusic) return;
+                const now = this.ctx.currentTime;
+                const freqs = this.chords[this.chordIndex];
+                this.chordIndex = (this.chordIndex + 1) % this.chords.length;
+
+                freqs.forEach((freq, idx) => {
+                    const osc = this.ctx.createOscillator();
+                    const noteGain = this.ctx.createGain();
+                    const filter = this.ctx.createBiquadFilter();
+
+                    // Âm sắc Electric Piano ấm áp
+                    osc.type = idx === 0 ? 'sine' : 'triangle';
+                    // Hiệu ứng detune nhẹ tạo cảm giác Lofi tape
+                    osc.frequency.setValueAtTime(freq, now);
+                    osc.detune.setValueAtTime((Math.random() - 0.5) * 10, now);
+
+                    filter.type = 'lowpass';
+                    filter.frequency.setValueAtTime(950, now);
+
+                    // Rải hợp âm (strum nhẹ)
+                    const delay = idx * 0.06;
+                    noteGain.gain.setValueAtTime(0.0001, now + delay);
+                    noteGain.gain.linearRampToValueAtTime(0.16 / freqs.length, now + delay + 0.15);
+                    noteGain.gain.exponentialRampToValueAtTime(0.0008, now + delay + 3.6);
+
+                    osc.connect(filter);
+                    filter.connect(noteGain);
+                    noteGain.connect(this.masterMusicGain);
+
+                    osc.start(now + delay);
+                    osc.stop(now + delay + 3.65);
+                });
+            }
+
+            // Hiệu ứng âm thanh (SFX)
+            playSfx(type) {
+                if (!this.sfxEnabled) return;
+                this.initContext();
+                const now = this.ctx.currentTime;
+
+                if (type === 'select') {
+                    this.tone(520, 0.04, 'sine', 0.04);
+                } else if (type === 'place') {
+                    this.tone(587.33, 0.09, 'sine', 0.1);
+                    setTimeout(() => this.tone(880, 0.12, 'triangle', 0.08), 45);
+                } else if (type === 'note') {
+                    this.tone(740, 0.05, 'sine', 0.05);
+                } else if (type === 'erase' || type === 'undo') {
+                    this.tone(420, 0.07, 'sine', 0.06);
+                    setTimeout(() => this.tone(330, 0.08, 'sine', 0.05), 40);
+                } else if (type === 'error') {
+                    this.tone(180, 0.16, 'sawtooth', 0.08);
+                    setTimeout(() => this.tone(145, 0.22, 'sawtooth', 0.08), 90);
+                } else if (type === 'group') {
+                    // Âm thanh hoàn thành 1 hàng/cột/khối 3x3
+                    [523.25, 659.25, 783.99, 1046.5].forEach((f, i) => {
+                        setTimeout(() => this.tone(f, 0.16, 'triangle', 0.09), i * 55);
+                    });
+                } else if (type === 'win') {
+                    // Nhạc hiệu chiến thắng
+                    [523.25, 659.25, 783.99, 1046.5, 1318.5].forEach((f, i) => {
+                        setTimeout(() => this.tone(f, 0.28, 'triangle', 0.12), i * 85);
+                    });
+                }
+            }
+
+            tone(freq, duration, type = 'sine', vol = 0.08) {
+                if (!this.ctx) return;
+                const now = this.ctx.currentTime;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = type;
+                osc.frequency.setValueAtTime(freq, now);
+                gain.gain.setValueAtTime(vol, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + duration);
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start(now);
+                osc.stop(now + duration);
+            }
+        }
+
+        const audioEngine = new ChillAudioEngine();
+
+        /**
+         * 2. THUẬT TOÁN TẠO & GIẢI SUDOKU (BACKTRACKING)
+         */
+        class SudokuGenerator {
+            static createEmptyBoard() {
+                return Array.from({ length: 9 }, () => Array(9).fill(0));
+            }
+
+            static isValid(board, row, col, num) {
+                for (let i = 0; i < 9; i++) {
+                    if (board[row][i] === num || board[i][col] === num) return false;
+                }
+                const startRow = Math.floor(row / 3) * 3;
+                const startCol = Math.floor(col / 3) * 3;
+                for (let r = 0; r < 3; r++) {
+                    for (let c = 0; c < 3; c++) {
+                        if (board[startRow + r][startCol + c] === num) return false;
+                    }
+                }
+                return true;
+            }
+
+            static shuffle(array) {
+                const arr = [...array];
+                for (let i = arr.length - 1; i > 0; i--) {
+                    const j = Math.floor(Math.random() * (i + 1));
+                    [arr[i], arr[j]] = [arr[j], arr[i]];
+                }
+                return arr;
+            }
+
+            static fillBoard(board) {
+                for (let r = 0; r < 9; r++) {
+                    for (let c = 0; c < 9; c++) {
+                        if (board[r][c] === 0) {
+                            const nums = this.shuffle([1, 2, 3, 4, 5, 6, 7, 8, 9]);
+                            for (const num of nums) {
+                                if (this.isValid(board, r, c, num)) {
+                                    board[r][c] = num;
+                                    if (this.fillBoard(board)) return true;
+                                    board[r][c] = 0;
+                                }
+                            }
+                            return false;
+                        }
+                    }
+                }
+                return true;
+            }
+
+            // Đếm số nghiệm để đảm bảo đề bài có lời giải duy nhất
+            static countSolutions(board, limit = 2) {
+                let count = 0;
+                const solve = (b) => {
+                    for (let r = 0; r < 9; r++) {
+                        for (let c = 0; c < 9; c++) {
+                            if (b[r][c] === 0) {
+                                for (let n = 1; n <= 9; n++) {
+                                    if (this.isValid(b, r, c, n)) {
+                                        b[r][c] = n;
+                                        solve(b);
+                                        b[r][c] = 0;
+                                        if (count >= limit) return;
+                                    }
+                                }
+                                return;
+                            }
+                        }
+                    }
+                    count++;
+                };
+                const copy = board.map(row => [...row]);
+                solve(copy);
+                return count;
+            }
+
+            static generate(difficulty = 'easy') {
+                const solution = this.createEmptyBoard();
+                this.fillBoard(solution);
+
+                const puzzle = solution.map(row => [...row]);
+                // Số ô giữ lại tùy theo độ khó
+                const cluesMap = {
+                    easy: 44,
+                    medium: 35,
+                    hard: 29,
+                    expert: 24
+                };
+                const targetClues = cluesMap[difficulty] || 42;
+                let cellsToRemove = 81 - targetClues;
+
+                // Xáo trộn danh sách tọa độ 81 ô
+                const coords = [];
+                for (let r = 0; r < 9; r++) {
+                    for (let c = 0; c < 9; c++) coords.push([r, c]);
+                }
+                const shuffledCoords = this.shuffle(coords);
+
+                for (const [r, c] of shuffledCoords) {
+                    if (cellsToRemove <= 0) break;
+                    const backup = puzzle[r][c];
+                    puzzle[r][c] = 0;
+
+                    // Kiểm tra tính duy nhất của lời giải
+                    const solutions = this.countSolutions(puzzle, 2);
+                    if (solutions !== 1) {
+                        puzzle[r][c] = backup;
+                    } else {
+                        cellsToRemove--;
+                    }
+                }
+
+                return { puzzle, solution };
+            }
+        }
+
+        /**
+         * 3. TRẠNG THÁI TRÒ CHƠI & DỮ LIỆU NGƯỜI DÙNG
+         */
+        const DIFF_NAMES = {
+            easy: 'Dễ',
+            medium: 'Trung bình',
+            hard: 'Khó',
+            expert: 'Chuyên gia'
+        };
+
+        let gameState = {
+            difficulty: 'easy',
+            initialBoard: [],
+            board: [],
+            solution: [],
+            notes: [], // Mảng 9x9 các Set chứa số ghi chú
+            selectedCell: { r: 0, c: 0 },
+            isNoteMode: false,
+            autoCleanNotes: true,
+            mistakes: 0,
+            maxMistakes: 3, // 3, 5, hoặc 0 (Không giới hạn)
+            hintsLeft: 3,
+            score: 0,
+            secondsElapsed: 0,
+            isPaused: false,
+            isGameOver: false,
+            history: [], // Ngăn xếp Undo
+            usedNoteInGame: false
+        };
+
+        let timerInterval = null;
+
+        // Dữ liệu Chuỗi Ngày (Streak) & Nhiệm vụ hàng ngày (Lưu trong LocalStorage)
+        let dailyData = {
+            currentStreak: 0,
+            bestStreak: 0,
+            lastCompletedDate: null,
+            totalWins: 0,
+            completedDates: [], // Mảng các chuỗi YYYY-MM-DD đã thắng
+            todayDate: '',
+            missions: []
+        };
+
+        function getTodayStr() {
+            const now = new Date();
+            const y = now.getFullYear();
+            const m = String(now.getMonth() + 1).padStart(2, '0');
+            const d = String(now.getDate()).padStart(2, '0');
+            return `${y}-${m}-${d}`;
+        }
+
+        function getYesterdayStr() {
+            const d = new Date();
+            d.setDate(d.getDate() - 1);
+            const y = d.getFullYear();
+            const m = String(d.getMonth() + 1).padStart(2, '0');
+            const day = String(d.getDate()).padStart(2, '0');
+            return `${y}-${m}-${day}`;
+        }
+
+        function createDefaultMissions() {
+            return [
+                {
+                    id: 'play_any',
+                    title: 'Khởi động trí não: Hoàn thành 1 ván bất kỳ',
+                    progress: 0,
+                    target: 1,
+                    completed: false,
+                    rewardPts: 150
+                },
+                {
+                    id: 'flawless_win',
+                    title: 'Chuẩn xác: Thắng 1 ván với tối đa 1 lỗi sai',
+                    progress: 0,
+                    target: 1,
+                    completed: false,
+                    rewardPts: 250
+                },
+                {
+                    id: 'pro_challenge',
+                    title: 'Bứt phá: Thắng cấp Trung bình, Khó hoặc Chuyên gia',
+                    progress: 0,
+                    target: 1,
+                    completed: false,
+                    rewardPts: 350
+                }
+            ];
+        }
+
+        function loadDailyData() {
+            const today = getTodayStr();
+            const raw = localStorage.getItem('chill_sudoku_daily_v1');
+            if (raw) {
+                try {
+                    const parsed = JSON.parse(raw);
+                    dailyData = { ...dailyData, ...parsed };
+                } catch (e) {}
+            }
+
+            // Kiểm tra nếu đứt chuỗi ngày (hôm qua không chơi và hôm nay chưa chơi)
+            const yesterday = getYesterdayStr();
+            if (
+                dailyData.lastCompletedDate &&
+                dailyData.lastCompletedDate !== today &&
+                dailyData.lastCompletedDate !== yesterday
+            ) {
+                dailyData.currentStreak = 0;
+            }
+
+            // Làm mới nhiệm vụ nếu sang ngày mới
+            if (dailyData.todayDate !== today || !Array.isArray(dailyData.missions) || dailyData.missions.length === 0) {
+                dailyData.todayDate = today;
+                dailyData.missions = createDefaultMissions();
+                saveDailyData();
+            }
+
+            renderDailyUI();
+        }
+
+        function saveDailyData() {
+            localStorage.setItem('chill_sudoku_daily_v1', JSON.stringify(dailyData));
+        }
+
+        /**
+         * 4. KHỞI TẠO VÀ VẼ GIAO DIỆN BẢNG SUDOKU
+         */
+        function initBoardDOM() {
+            const boardEl = document.getElementById('sudoku-board');
+            boardEl.innerHTML = '';
+
+            for (let r = 0; r < 9; r++) {
+                for (let c = 0; c < 9; c++) {
+                    const cell = document.createElement('div');
+                    cell.id = `cell-${r}-${c}`;
+                    cell.className = 'sudoku-cell';
+                    if (r === 2 || r === 5) cell.classList.add('row-border-bottom');
+                    if (r === 8) cell.classList.add('row-last');
+
+                    cell.addEventListener('click', () => selectCell(r, c));
+                    boardEl.appendChild(cell);
+                }
+            }
+        }
+
+        function startNewGame(difficulty = gameState.difficulty) {
+            const { puzzle, solution } = SudokuGenerator.generate(difficulty);
+
+            gameState.difficulty = difficulty;
+            gameState.initialBoard = puzzle.map(row => [...row]);
+            gameState.board = puzzle.map(row => [...row]);
+            gameState.solution = solution.map(row => [...row]);
+            gameState.notes = Array.from({ length: 9 }, () =>
+                Array.from({ length: 9 }, () => new Set())
+            );
+            gameState.mistakes = 0;
+            gameState.hintsLeft = 3;
+            gameState.score = 0;
+            gameState.secondsElapsed = 0;
+            gameState.isPaused = false;
+            gameState.isGameOver = false;
+            gameState.history = [];
+            gameState.usedNoteInGame = false;
+
+            // Chọn ô trống đầu tiên hoặc (0,0)
+            let found = false;
+            for (let r = 0; r < 9 && !found; r++) {
+                for (let c = 0; c < 9 && !found; c++) {
+                    if (puzzle[r][c] === 0) {
+                        gameState.selectedCell = { r, c };
+                        found = true;
+                    }
+                }
+            }
+
+            document.getElementById('pause-overlay').classList.add('hidden');
+            startTimer();
+            updateDifficultyTabsUI();
+            updateMistakeLimitOptionUI();
+            renderAll();
+        }
+
+        function requestNewGame(diff) {
+            startNewGame(diff);
+            showToast(`Đã tạo ván mới cấp độ ${DIFF_NAMES[diff]}`, 'info');
+        }
+
+        function startTimer() {
+            if (timerInterval) clearInterval(timerInterval);
+            timerInterval = setInterval(() => {
+                if (!gameState.isPaused && !gameState.isGameOver) {
+                    gameState.secondsElapsed++;
+                    updateTimerUI();
+                }
+            }, 1000);
+        }
+
+        function formatTime(sec) {
+            const m = String(Math.floor(sec / 60)).padStart(2, '0');
+            const s = String(sec % 60).padStart(2, '0');
+            return `${m}:${s}`;
+        }
+
+        function updateTimerUI() {
+            document.getElementById('timer-display').textContent = formatTime(gameState.secondsElapsed);
+        }
+
+        function renderAll() {
+            renderBoard();
+            renderNumpad();
+            updateStatsUI();
+            updateTimerUI();
+        }
+
+        function renderBoard() {
+            const { r: selR, c: selC } = gameState.selectedCell;
+            const selectedVal = gameState.board[selR]?.[selC] || 0;
+            const selBoxR = Math.floor(selR / 3) * 3;
+            const selBoxC = Math.floor(selC / 3) * 3;
+
+            for (let r = 0; r < 9; r++) {
+                for (let c = 0; c < 9; c++) {
+                    const cellEl = document.getElementById(`cell-${r}-${c}`);
+                    const val = gameState.board[r][c];
+                    const isFixed = gameState.initialBoard[r][c] !== 0;
+
+                    // Xóa các class trạng thái cũ
+                    cellEl.classList.remove(
+                        'cell-selected',
+                        'cell-related',
+                        'cell-same',
+                        'cell-error',
+                        'cell-user',
+                        'cell-fixed'
+                    );
+
+                    const inSameBox =
+                        r >= selBoxR && r < selBoxR + 3 && c >= selBoxC && c < selBoxC + 3;
+                    if (r === selR && c === selC) {
+                        cellEl.classList.add('cell-selected');
+                    } else if (selectedVal !== 0 && val === selectedVal) {
+                        cellEl.classList.add('cell-same');
+                    } else if (r === selR || c === selC || inSameBox) {
+                        cellEl.classList.add('cell-related');
+                    }
+
+                    // Hiển thị giá trị hoặc ghi chú
+                    if (val !== 0) {
+                        cellEl.textContent = val;
+                        if (isFixed) {
+                            cellEl.classList.add('cell-fixed');
+                        } else {
+                            cellEl.classList.add('cell-user');
+                            if (val !== gameState.solution[r][c]) {
+                                cellEl.classList.add('cell-error');
+                            }
+                        }
+                    } else {
+                        // Hiển thị lưới ghi chú 3x3
+                        const notesSet = gameState.notes[r][c];
+                        if (notesSet.size > 0) {
+                            let notesHTML = '<div class="notes-grid">';
+                            for (let n = 1; n <= 9; n++) {
+                                const hasNote = notesSet.has(n);
+                                const isHighlighted = hasNote && selectedVal === n;
+                                notesHTML += `<div class="note-num ${isHighlighted ? 'note-highlight' : ''}">${hasNote ? n : ''}</div>`;
+                            }
+                            notesHTML += '</div>';
+                            cellEl.innerHTML = notesHTML;
+                        } else {
+                            cellEl.innerHTML = '';
+                        }
+                    }
+                }
+            }
+        }
+
+        function renderNumpad() {
+            const container = document.getElementById('numpad-container');
+            container.innerHTML = '';
+
+            // Đếm số lượng mỗi chữ số đã điền đúng trên bảng
+            const counts = Array(10).fill(0);
+            for (let r = 0; r < 9; r++) {
+                for (let c = 0; c < 9; c++) {
+                    const v = gameState.board[r][c];
+                    if (v !== 0 && v === gameState.solution[r][c]) {
+                        counts[v]++;
+                    }
+                }
+            }
+
+            for (let n = 1; n <= 9; n++) {
+                const remaining = Math.max(0, 9 - counts[n]);
+                const btn = document.createElement('button');
+                btn.className = `numpad-btn ${remaining === 0 ? 'numpad-completed' : ''}`;
+                btn.onclick = () => handleNumberInput(n);
+
+                btn.innerHTML = `
+                    <span class="text-lg sm:text-xl font-extrabold leading-none" style="color: ${gameState.isNoteMode ? 'var(--text-muted)' : 'var(--primary)'}">${n}</span>
+                    <span class="text-[10px] font-bold text-muted mt-0.5">${remaining}</span>
+                `;
+                container.appendChild(btn);
+            }
+        }
+
+        function updateStatsUI() {
+            const limitText = gameState.maxMistakes === 0 ? '∞' : gameState.maxMistakes;
+            document.getElementById('mistakes-display').textContent = `${gameState.mistakes} / ${limitText}`;
+            document.getElementById('score-display').textContent = gameState.score.toLocaleString('vi-VN');
+            document.getElementById('hint-count-badge').textContent = gameState.hintsLeft;
+            document.getElementById('undo-count-badge').textContent = gameState.history.length;
+
+            // Nút ghi chú
+            const noteBtn = document.getElementById('btn-note-mode');
+            const noteBadge = document.getElementById('note-status-badge');
+            if (gameState.isNoteMode) {
+                noteBtn.style.borderColor = 'var(--primary)';
+                noteBadge.textContent = 'BẬT';
+                noteBadge.className = 'absolute top-1.5 right-1.5 px-1.5 py-0.2 rounded-full text-[9px] font-extrabold btn-primary';
+            } else {
+                noteBtn.style.borderColor = '';
+                noteBadge.textContent = 'TẮT';
+                noteBadge.className = 'absolute top-1.5 right-1.5 px-1.5 py-0.2 rounded-full text-[9px] font-extrabold bg-subtle text-muted';
+            }
+        }
+
+        function updateDifficultyTabsUI() {
+            document.querySelectorAll('.diff-tab').forEach(btn => {
+                if (btn.dataset.diff === gameState.difficulty) {
+                    btn.className = 'diff-tab px-3 py-1.5 rounded-xl text-xs sm:text-sm font-bold transition btn-primary shadow-sm';
+                } else {
+                    btn.className = 'diff-tab px-3 py-1.5 rounded-xl text-xs sm:text-sm font-bold transition text-muted hover:bg-subtle';
+                }
+            });
+        }
+
+        /**
+         * 5. XỬ LÝ TƯƠNG TÁC NGƯỜI CHƠI (NHẬP SỐ, GHI CHÚ, UNDO, HINT)
+         */
+        function selectCell(r, c) {
+            if (gameState.isPaused || gameState.isGameOver) return;
+            gameState.selectedCell = { r, c };
+            audioEngine.playSfx('select');
+            renderBoard();
+        }
+
+        // Lưu trạng thái vào ngăn xếp Undo trước mỗi thao tác
+        function pushHistorySnapshot() {
+            const snapshot = {
+                board: gameState.board.map(row => [...row]),
+                notes: gameState.notes.map(row => row.map(set => new Set(set))),
+                score: gameState.score
+            };
+            gameState.history.push(snapshot);
+            if (gameState.history.length > 60) gameState.history.shift();
+        }
+
+        function handleNumberInput(num) {
+            if (gameState.isPaused || gameState.isGameOver) return;
+            const { r, c } = gameState.selectedCell;
+
+            // Không sửa ô đề bài cố định
+            if (gameState.initialBoard[r][c] !== 0) return;
+            // Nếu ô đã điền đúng số rồi thì không cho ghi đè
+            if (gameState.board[r][c] === gameState.solution[r][c]) return;
+
+            pushHistorySnapshot();
+
+            const cellEl = document.getElementById(`cell-${r}-${c}`);
+
+            // CHẾ ĐỘ GHI CHÚ (NOTES)
+            if (gameState.isNoteMode) {
+                // Nếu đang có số sai trên ô, xóa số sai trước khi thêm ghi chú
+                if (gameState.board[r][c] !== 0) {
+                    gameState.board[r][c] = 0;
+                }
+                const notesSet = gameState.notes[r][c];
+                if (notesSet.has(num)) {
+                    notesSet.delete(num);
+                } else {
+                    notesSet.add(num);
+                }
+                gameState.usedNoteInGame = true;
+                audioEngine.playSfx('note');
+                renderAll();
+                return;
+            }
+
+            // CHẾ ĐỘ NHẬP SỐ CHÍNH
+            if (gameState.board[r][c] === num) {
+                // Nhấn lại cùng số đang sai để xóa
+                gameState.board[r][c] = 0;
+                audioEngine.playSfx('erase');
+                renderAll();
+                return;
+            }
+
+            gameState.board[r][c] = num;
+            gameState.notes[r][c].clear();
+
+            if (num === gameState.solution[r][c]) {
+                // Điền ĐÚNG
+                const diffMultiplier = { easy: 1, medium: 1.5, hard: 2, expert: 3 }[gameState.difficulty] || 1;
+                gameState.score += Math.round(50 * diffMultiplier);
+
+                // Tự động xóa số ghi chú trùng trong cùng hàng, cột, khối 3x3
+                if (gameState.autoCleanNotes) {
+                    cleanRelatedNotes(r, c, num);
+                }
+
+                renderAll();
+                triggerCellAnimation(cellEl, 'anim-pop');
+
+                // Kiểm tra hiệu ứng hoàn thành hàng / cột / khối 3x3
+                const completedGroup = checkAndAnimateCompletedGroups(r, c);
+                if (completedGroup) {
+                    audioEngine.playSfx('group');
+                    gameState.score += 100;
+                } else {
+                    audioEngine.playSfx('place');
+                }
+
+                // Kiểm tra chiến thắng toàn bộ bảng
+                if (checkBoardCompleted()) {
+                    handleGameWin();
+                }
+            } else {
+                // Điền SAI
+                gameState.mistakes++;
+                gameState.score = Math.max(0, gameState.score - 20);
+                audioEngine.playSfx('error');
+                renderAll();
+                triggerCellAnimation(cellEl, 'anim-shake');
+
+                // Kiểm tra chạm giới hạn lỗi sai
+                if (gameState.maxMistakes > 0 && gameState.mistakes >= gameState.maxMistakes) {
+                    handleGameOverLoss();
+                }
+            }
+        }
+
+        function cleanRelatedNotes(row, col, num) {
+            for (let i = 0; i < 9; i++) {
+                gameState.notes[row][i].delete(num);
+                gameState.notes[i][col].delete(num);
+            }
+            const startR = Math.floor(row / 3) * 3;
+            const startC = Math.floor(col / 3) * 3;
+            for (let r = 0; r < 3; r++) {
+                for (let c = 0; c < 3; c++) {
+                    gameState.notes[startR + r][startC + c].delete(num);
+                }
+            }
+        }
+
+        function triggerCellAnimation(el, animClass) {
+            if (!el) return;
+            el.classList.remove('anim-pop', 'anim-shake', 'anim-wave');
+            void el.offsetWidth;
+            el.classList.add(animClass);
+        }
+
+        function checkAndAnimateCompletedGroups(row, col) {
+            let groupCompleted = false;
+
+            // Kiểm tra hàng
+            let rowDone = true;
+            for (let c = 0; c < 9; c++) {
+                if (gameState.board[row][c] !== gameState.solution[row][c]) rowDone = false;
+            }
+            if (rowDone) {
+                groupCompleted = true;
+                for (let c = 0; c < 9; c++) {
+                    setTimeout(() => {
+                        triggerCellAnimation(document.getElementById(`cell-${row}-${c}`), 'anim-wave');
+                    }, c * 35);
+                }
+            }
+
+            // Kiểm tra cột
+            let colDone = true;
+            for (let r = 0; r < 9; r++) {
+                if (gameState.board[r][col] !== gameState.solution[r][col]) colDone = false;
+            }
+            if (colDone) {
+                groupCompleted = true;
+                for (let r = 0; r < 9; r++) {
+                    setTimeout(() => {
+                        triggerCellAnimation(document.getElementById(`cell-${r}-${col}`), 'anim-wave');
+                    }, r * 35);
+                }
+            }
+
+            // Kiểm tra khối 3x3
+            const boxR = Math.floor(row / 3) * 3;
+            const boxC = Math.floor(col / 3) * 3;
+            let boxDone = true;
+            for (let r = 0; r < 3; r++) {
+                for (let c = 0; c < 3; c++) {
+                    if (gameState.board[boxR + r][boxC + c] !== gameState.solution[boxR + r][boxC + c]) {
+                        boxDone = false;
+                    }
+                }
+            }
+            if (boxDone) {
+                groupCompleted = true;
+                let idx = 0;
+                for (let r = 0; r < 3; r++) {
+                    for (let c = 0; c < 3; c++) {
+                        setTimeout(() => {
+                            triggerCellAnimation(document.getElementById(`cell-${boxR + r}-${boxC + c}`), 'anim-wave');
+                        }, idx * 35);
+                        idx++;
+                    }
+                }
+            }
+
+            return groupCompleted;
+        }
+
+        function checkBoardCompleted() {
+            for (let r = 0; r < 9; r++) {
+                for (let c = 0; c < 9; c++) {
+                    if (gameState.board[r][c] !== gameState.solution[r][c]) return false;
+                }
+            }
+            return true;
+        }
+
+        // Hoàn tác (Undo)
+        function handleUndo() {
+            if (gameState.isPaused || gameState.isGameOver) return;
+            if (gameState.history.length === 0) {
+                showToast('Không còn bước nào để hoàn tác!', 'info');
+                return;
+            }
+            const last = gameState.history.pop();
+            gameState.board = last.board.map(row => [...row]);
+            gameState.notes = last.notes.map(row => row.map(set => new Set(set)));
+            gameState.score = last.score;
+            audioEngine.playSfx('undo');
+            renderAll();
+        }
+
+        // Xóa ô (Erase)
+        function handleErase() {
+            if (gameState.isPaused || gameState.isGameOver) return;
+            const { r, c } = gameState.selectedCell;
+            if (gameState.initialBoard[r][c] !== 0) return;
+            if (gameState.board[r][c] === gameState.solution[r][c]) return;
+
+            if (gameState.board[r][c] !== 0 || gameState.notes[r][c].size > 0) {
+                pushHistorySnapshot();
+                gameState.board[r][c] = 0;
+                gameState.notes[r][c].clear();
+                audioEngine.playSfx('erase');
+                renderAll();
+            }
+        }
+
+        // Bật/Tắt chế độ ghi chú
+        function toggleNoteMode() {
+            if (gameState.isPaused || gameState.isGameOver) return;
+            gameState.isNoteMode = !gameState.isNoteMode;
+            audioEngine.playSfx('select');
+            renderAll();
+        }
+
+        function toggleAutoCleanNotes() {
+            gameState.autoCleanNotes = document.getElementById('chk-auto-notes').checked;
+        }
+
+        // Gợi ý (Hint)
+        function handleHint() {
+            if (gameState.isPaused || gameState.isGameOver) return;
+            if (gameState.hintsLeft <= 0) {
+                showToast('Bạn đã dùng hết 3 lượt gợi ý trong ván này!', 'warn');
+                return;
+            }
+
+            let { r, c } = gameState.selectedCell;
+            // Nếu ô đang chọn đã đúng, tự tìm một ô chưa điền để gợi ý
+            if (gameState.board[r][c] === gameState.solution[r][c]) {
+                let found = false;
+                for (let i = 0; i < 9 && !found; i++) {
+                    for (let j = 0; j < 9 && !found; j++) {
+                        if (gameState.board[i][j] !== gameState.solution[i][j]) {
+                            r = i;
+                            c = j;
+                            gameState.selectedCell = { r, c };
+                            found = true;
+                        }
+                    }
+                }
+            }
+
+            pushHistorySnapshot();
+            const correctNum = gameState.solution[r][c];
+            gameState.board[r][c] = correctNum;
+            gameState.notes[r][c].clear();
+            gameState.hintsLeft--;
+
+            if (gameState.autoCleanNotes) {
+                cleanRelatedNotes(r, c, correctNum);
+            }
+
+            audioEngine.playSfx('place');
+            renderAll();
+            triggerCellAnimation(document.getElementById(`cell-${r}-${c}`), 'anim-pop');
+
+            if (checkBoardCompleted()) {
+                handleGameWin();
+            }
+        }
+
+        /**
+         * 6. GIỚI HẠN LỖI SAI & KẾT THÚC GAME (THẮNG / THUA)
+         */
+        function cycleMistakeLimit() {
+            const order = [3, 5, 0];
+            const idx = order.indexOf(gameState.maxMistakes);
+            const next = order[(idx + 1) % order.length];
+            setMistakeLimitOption(next);
+            const label = next === 0 ? 'Không giới hạn lỗi' : `Giới hạn ${next} lỗi sai`;
+            showToast(`Đã chuyển sang chế độ: ${label}`, 'info');
+        }
+
+        function setMistakeLimitOption(limit) {
+            gameState.maxMistakes = limit;
+            updateStatsUI();
+            updateMistakeLimitOptionUI();
+        }
+
+        function updateMistakeLimitOptionUI() {
+            document.querySelectorAll('.limit-opt-btn').forEach(btn => {
+                const val = Number(btn.dataset.limit);
+                if (val === gameState.maxMistakes) {
+                    btn.className = 'limit-opt-btn py-2.5 px-2 rounded-xl border-2 text-xs font-extrabold transition flex flex-col items-center gap-1 bg-subtle';
+                    btn.style.borderColor = 'var(--primary)';
+                } else {
+                    btn.className = 'limit-opt-btn py-2.5 px-2 rounded-xl border border-gray-400/20 text-xs font-bold transition flex flex-col items-center gap-1 opacity-70 hover:opacity-100';
+                    btn.style.borderColor = '';
+                }
+            });
+        }
+
+        function togglePauseGame() {
+            if (gameState.isGameOver) return;
+            gameState.isPaused = !gameState.isPaused;
+            const overlay = document.getElementById('pause-overlay');
+            const pauseIcon = document.getElementById('pause-icon');
+
+            if (gameState.isPaused) {
+                overlay.classList.remove('hidden');
+                pauseIcon.className = 'ph-fill ph-play text-sm';
+            } else {
+                overlay.classList.add('hidden');
+                pauseIcon.className = 'ph-fill ph-pause text-sm';
+            }
+        }
+
+        function handleGameWin() {
+            gameState.isGameOver = true;
+            audioEngine.playSfx('win');
+            launchConfetti();
+
+            // Cập nhật Chuỗi Ngày (Daily Streak) & Nhiệm vụ
+            const streakIncreased = processDailyProgressOnWin();
+
+            // Hiển thị Modal chiến thắng
+            document.getElementById('result-icon-wrap').className = 'w-16 h-16 rounded-2xl mx-auto mb-3 flex items-center justify-center bg-emerald-500/15 text-emerald-500';
+            document.getElementById('result-icon').className = 'ph-fill ph-trophy text-4xl';
+            document.getElementById('result-title').textContent = 'Hoàn Thành Xuất Sắc!';
+            document.getElementById('result-subtitle').textContent = `Bạn đã giải thành công bảng Sudoku cấp độ ${DIFF_NAMES[gameState.difficulty]}.`;
+
+            document.getElementById('res-diff').textContent = DIFF_NAMES[gameState.difficulty];
+            document.getElementById('res-time').textContent = formatTime(gameState.secondsElapsed);
+            const limitText = gameState.maxMistakes === 0 ? '∞' : gameState.maxMistakes;
+            document.getElementById('res-mistakes').textContent = `${gameState.mistakes}/${limitText}`;
+
+            const streakBanner = document.getElementById('res-streak-banner');
+            if (streakIncreased) {
+                streakBanner.classList.remove('hidden');
+                streakBanner.classList.add('flex');
+                document.getElementById('res-streak-text').textContent = `Chuỗi ngày liên tiếp tăng lên ${dailyData.currentStreak} ngày!`;
+            } else {
+                streakBanner.classList.add('hidden');
+                streakBanner.classList.remove('flex');
+            }
+
+            document.getElementById('btn-second-chance').classList.add('hidden');
+            setTimeout(() => openModal('result-modal'), 550);
+        }
+
+        function handleGameOverLoss() {
+            gameState.isGameOver = true;
+
+            document.getElementById('result-icon-wrap').className = 'w-16 h-16 rounded-2xl mx-auto mb-3 flex items-center justify-center bg-red-500/15 text-red-500';
+            document.getElementById('result-icon').className = 'ph-fill ph-heart-break text-4xl';
+            document.getElementById('result-title').textContent = 'Kết Thúc Ván Chơi';
+            document.getElementById('result-subtitle').textContent = `Bạn đã mắc ${gameState.mistakes}/${gameState.maxMistakes} lỗi sai cho phép.`;
+
+            document.getElementById('res-diff').textContent = DIFF_NAMES[gameState.difficulty];
+            document.getElementById('res-time').textContent = formatTime(gameState.secondsElapsed);
+            document.getElementById('res-mistakes').textContent = `${gameState.mistakes}/${gameState.maxMistakes}`;
+
+            document.getElementById('res-streak-banner').classList.add('hidden');
+            document.getElementById('btn-second-chance').classList.remove('hidden');
+
+            openModal('result-modal');
+        }
+
+        function continueWithExtraLives() {
+            gameState.maxMistakes = 0; // Đổi sang không giới hạn lỗi
+            gameState.isGameOver = false;
+            closeModal('result-modal');
+            updateStatsUI();
+            updateMistakeLimitOptionUI();
+            showToast('Đã chuyển sang Không giới hạn lỗi. Chúc bạn hoàn thành ván chơi!', 'info');
+        }
+
+        /**
+         * 7. HỆ THỐNG CHUỖI NGÀY (STREAK) & NHIỆM VỤ HÀNG NGÀY (DAILY MISSIONS)
+         */
+        function processDailyProgressOnWin() {
+            const today = getTodayStr();
+            const yesterday = getYesterdayStr();
+            let streakIncrementedToday = false;
+
+            dailyData.totalWins = (dailyData.totalWins || 0) + 1;
+
+            // Kiểm tra tăng chuỗi ngày hôm nay
+            if (dailyData.lastCompletedDate !== today) {
+                if (dailyData.lastCompletedDate === yesterday) {
+                    dailyData.currentStreak += 1;
+                } else {
+                    dailyData.currentStreak = 1;
+                }
+                dailyData.lastCompletedDate = today;
+                if (dailyData.currentStreak > dailyData.bestStreak) {
+                    dailyData.bestStreak = dailyData.currentStreak;
+                }
+                if (!dailyData.completedDates.includes(today)) {
+                    dailyData.completedDates.push(today);
+                }
+                streakIncrementedToday = true;
+            }
+
+            // Kiểm tra hoàn thành từng nhiệm vụ hàng ngày
+            dailyData.missions.forEach(m => {
+                if (m.completed) return;
+                if (m.id === 'play_any') {
+                    m.progress = 1;
+                    m.completed = true;
+                    gameState.score += m.rewardPts;
+                    showToast(`Hoàn thành nhiệm vụ: +${m.rewardPts} điểm!`, 'success');
+                } else if (m.id === 'flawless_win' && gameState.mistakes <= 1) {
+                    m.progress = 1;
+                    m.completed = true;
+                    gameState.score += m.rewardPts;
+                    showToast(`Nhiệm vụ Chuẩn Xác hoàn tất: +${m.rewardPts} điểm!`, 'success');
+                } else if (m.id === 'pro_challenge' && ['medium', 'hard', 'expert'].includes(gameState.difficulty)) {
+                    m.progress = 1;
+                    m.completed = true;
+                    gameState.score += m.rewardPts;
+                    showToast(`Nhiệm vụ Bứt Phá hoàn tất: +${m.rewardPts} điểm!`, 'success');
+                }
+            });
+
+            saveDailyData();
+            renderDailyUI();
+            updateStatsUI();
+            return streakIncrementedToday;
+        }
+
+        function renderDailyUI() {
+            const today = getTodayStr();
+            document.getElementById('header-streak-count').textContent = dailyData.currentStreak;
+            document.getElementById('modal-streak-current').textContent = dailyData.currentStreak;
+            document.getElementById('modal-streak-best').textContent = dailyData.bestStreak;
+            document.getElementById('modal-total-wins').textContent = dailyData.totalWins || 0;
+            document.getElementById('daily-date-label').textContent = `Ngày ${today.split('-').reverse().join('/')}`;
+
+            const playedToday = dailyData.lastCompletedDate === today;
+            const statusEl = document.getElementById('streak-today-status');
+            if (playedToday) {
+                statusEl.innerHTML = '<span class="text-emerald-600 dark:text-emerald-400 font-bold"><i class="ph-fill ph-check-circle"></i> Bạn đã giữ lửa chuỗi ngày hôm nay!</span>';
+            } else {
+                statusEl.textContent = 'Hoàn thành 1 ván hôm nay để tăng chuỗi ngày!';
+            }
+
+            // Vẽ lịch 7 ngày gần nhất
+            const weekGrid = document.getElementById('week-streak-grid');
+            weekGrid.innerHTML = '';
+            const dayLabels = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'];
+            for (let i = 6; i >= 0; i--) {
+                const d = new Date();
+                d.setDate(d.getDate() - i);
+                const dStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+                const isDone = (dailyData.completedDates || []).includes(dStr);
+                const isToday = i === 0;
+
+                const item = document.createElement('div');
+                item.className = `p-2 rounded-xl border flex flex-col items-center gap-1 ${isToday ? 'border-orange-500 bg-orange-500/10' : 'border-gray-400/15 bg-subtle'}`;
+                item.innerHTML = `
+                    <span class="text-[10px] font-bold text-muted">${dayLabels[d.getDay()]}</span>
+                    <div class="w-6 h-6 rounded-full flex items-center justify-center ${isDone ? 'bg-orange-500 text-white' : 'bg-panel text-muted'}">
+                        <i class="ph-fill ${isDone ? 'ph-fire' : 'ph-dot'} text-sm"></i>
+                    </div>
+                `;
+                weekGrid.appendChild(item);
+            }
+
+            // Vẽ danh sách nhiệm vụ ở cả màn hình chính & trong Modal
+            const renderMissionItem = (m) => `
+                <div class="p-3 rounded-xl bg-subtle border ${m.completed ? 'border-emerald-500/40' : 'border-transparent'} flex items-center justify-between gap-3">
+                    <div class="flex items-center gap-2.5">
+                        <div class="w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${m.completed ? 'bg-emerald-500 text-white' : 'bg-panel text-muted'}">
+                            <i class="ph-bold ${m.completed ? 'ph-check' : 'ph-target'}"></i>
+                        </div>
+                        <div>
+                            <div class="text-xs font-bold ${m.completed ? 'line-through opacity-70' : ''}">${m.title}</div>
+                            <div class="text-[10px] text-muted font-semibold mt-0.5">Thưởng: +${m.rewardPts} điểm</div>
+                        </div>
+                    </div>
+                    <span class="text-[10px] font-extrabold px-2 py-1 rounded-lg ${m.completed ? 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400' : 'bg-panel text-muted'} shrink-0">
+                        ${m.completed ? 'Đã xong' : `${m.progress}/${m.target}`}
+                    </span>
+                </div>
+            `;
+
+            const html = dailyData.missions.map(renderMissionItem).join('');
+            document.getElementById('inline-missions-list').innerHTML = html;
+            document.getElementById('modal-missions-list').innerHTML = html;
+        }
+
+        /**
+         * 8. ĐIỀU KHIỂN ÂM THANH, CHỦ ĐỀ MÀU SẮC & BÀN PHÍM VẬT LÝ
+         */
+        function toggleChillMusic() {
+            const playing = audioEngine.toggleMusic();
+            const eq = document.getElementById('lofi-eq');
+            const modalBtn = document.getElementById('modal-lofi-btn');
+
+            if (playing) {
+                eq.classList.remove('hidden');
+                eq.classList.add('flex');
+                modalBtn.textContent = 'Tắt nhạc';
+                showToast('Đang phát nhạc nền Chill Lofi...', 'info');
+            } else {
+                eq.classList.add('hidden');
+                eq.classList.remove('flex');
+                modalBtn.textContent = 'Bật nhạc';
+            }
+        }
+
+        function updateMusicVolume(val) {
+            audioEngine.setVolume(Number(val));
+        }
+
+        function toggleSfx(enabled) {
+            audioEngine.sfxEnabled = enabled;
+        }
+
+        const THEMES = ['theme-matcha', 'theme-dark', 'theme-warm'];
+        let currentThemeIdx = 0;
+
+        function setTheme(themeName) {
+            const html = document.documentElement;
+            THEMES.forEach(t => html.classList.remove(t));
+            html.classList.add(themeName);
+            currentThemeIdx = THEMES.indexOf(themeName);
+            localStorage.setItem('chill_sudoku_theme', themeName);
+        }
+
+        function cycleTheme() {
+            currentThemeIdx = (currentThemeIdx + 1) % THEMES.length;
+            const nextTheme = THEMES[currentThemeIdx];
+            setTheme(nextTheme);
+            const names = {
+                'theme-matcha': 'Matcha Thư Giãn',
+                'theme-dark': 'Đêm Yên Tĩnh',
+                'theme-warm': 'Nắng Ấm'
+            };
+            showToast(`Giao diện: ${names[nextTheme]}`, 'info');
+        }
+
+        function openModal(id) {
+            const el = document.getElementById(id);
+            if (!el) return;
+            el.classList.remove('hidden');
+            el.classList.add('flex');
+        }
+
+        function closeModal(id) {
+            const el = document.getElementById(id);
+            if (!el) return;
+            el.classList.add('hidden');
+            el.classList.remove('flex');
+        }
+
+        function showToast(message, type = 'info') {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            const iconMap = {
+                info: 'ph-info text-sky-500',
+                success: 'ph-check-circle text-emerald-500',
+                warn: 'ph-warning text-amber-500'
+            };
+            toast.className = 'bg-panel border border-gray-400/25 shadow-lg rounded-2xl px-4 py-2.5 flex items-center gap-2.5 text-xs sm:text-sm font-bold animate-[popIn_0.2s_ease-out]';
+            toast.innerHTML = `
+                <i class="ph-fill ${iconMap[type] || iconMap.info} text-lg shrink-0"></i>
+                <span>${message}</span>
+            `;
+            container.appendChild(toast);
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                toast.style.transition = 'opacity 0.25s ease';
+                setTimeout(() => toast.remove(), 250);
+            }, 2400);
+        }
+
+        // Hiệu ứng pháo hoa giấy khi thắng
+        function launchConfetti() {
+            const canvas = document.getElementById('confetti-canvas');
+            canvas.classList.remove('hidden');
+            const ctx = canvas.getContext('2d');
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+
+            const pieces = Array.from({ length: 85 }, () => ({
+                x: Math.random() * canvas.width,
+                y: Math.random() * -canvas.height,
+                size: Math.random() * 8 + 4,
+                speedY: Math.random() * 3.5 + 2,
+                speedX: (Math.random() - 0.5) * 2.5,
+                color: ['#10b981', '#f59e0b', '#3b82f6', '#ec4899', '#8b5cf6'][Math.floor(Math.random() * 5)],
+                angle: Math.random() * 360
+            }));
+
+            let frames = 0;
+            function draw() {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                pieces.forEach(p => {
+                    p.y += p.speedY;
+                    p.x += p.speedX;
+                    p.angle += 4;
+                    ctx.save();
+                    ctx.translate(p.x, p.y);
+                    ctx.rotate((p.angle * Math.PI) / 180);
+                    ctx.fillStyle = p.color;
+                    ctx.fillRect(-p.size / 2, -p.size / 2, p.size, p.size);
+                    ctx.restore();
+                });
+                frames++;
+                if (frames < 170) {
+                    requestAnimationFrame(draw);
+                } else {
+                    canvas.classList.add('hidden');
+                }
+            }
+            draw();
+        }
+
+        // Hỗ trợ điều khiển bằng bàn phím máy tính
+        window.addEventListener('keydown', (e) => {
+            if (gameState.isPaused || gameState.isGameOver) return;
+
+            const { r, c } = gameState.selectedCell;
+            if (e.key >= '1' && e.key <= '9') {
+                e.preventDefault();
+                handleNumberInput( parseInt(e.key, 10) );
+            } else if (e.key === 'Backspace' || e.key === 'Delete' || e.key === '0') {
+                e.preventDefault();
+                handleErase();
+            } else if (e.key.toLowerCase() === 'n') {
+                e.preventDefault();
+                toggleNoteMode();
+            } else if (e.key.toLowerCase() === 'z') {
+                e.preventDefault();
+                handleUndo();
+            } else if (e.key.toLowerCase() === 'h') {
+                e.preventDefault();
+                handleHint();
+            } else if (['ArrowUp', 'w', 'W'].includes(e.key)) {
+                e.preventDefault();
+                selectCell((r + 8) % 9, c);
+            } else if (['ArrowDown', 's', 'S'].includes(e.key)) {
+                e.preventDefault();
+                selectCell((r + 1) % 9, c);
+            } else if (['ArrowLeft', 'a', 'A'].includes(e.key)) {
+                e.preventDefault();
+                selectCell(r, (c + 8) % 9);
+            } else if (['ArrowRight', 'd', 'D'].includes(e.key)) {
+                e.preventDefault();
+                selectCell(r, (c + 1) % 9);
+            }
+        });
+
+        // Khởi chạy khi tải trang hoàn tất
+        window.onload = function () {
+            const savedTheme = localStorage.getItem('chill_sudoku_theme');
+            if (savedTheme && THEMES.includes(savedTheme)) {
+                setTheme(savedTheme);
+            }
+            initBoardDOM();
+            loadDailyData();
+            startNewGame('easy');
+        };
+// --- TỰ ĐỘNG LƯU & KHÔI PHỤC CHUẨN XÁC (GỒM CẢ ĐỒNG HỒ & LỊCH SỬ UNDO) ---
+function saveCurrentBoardProgress() {
+    if (!state.board || state.board.length === 0 || state.isGameOver) return;
+    const boardData = {
+        board: state.board,
+        solution: state.solution,
+        given: state.given,
+        notes: state.notes,
+        history: state.history,
+        difficulty: state.difficulty,
+        mistakes: state.mistakes,
+        maxMistakes: state.maxMistakes,
+        seconds: state.seconds,
+        score: state.score,
+        hintsLeft: state.hintsLeft
+    };
+    localStorage.setItem('chill_sudoku_active_board', JSON.stringify(boardData));
+}
+
+function loadCurrentBoardProgress() {
+    const saved = localStorage.getItem('chill_sudoku_active_board');
+    if (!saved) return false;
+    try {
+        const data = JSON.parse(saved);
+        if (!data.board || data.board.length !== 9) return false;
+
+        state.board = data.board;
+        state.solution = data.solution;
+        state.given = data.given;
+        state.notes = data.notes;
+        state.history = data.history || [];
+        state.difficulty = data.difficulty || 'easy';
+        state.mistakes = data.mistakes || 0;
+        state.maxMistakes = data.maxMistakes || 3;
+        state.seconds = data.seconds || 0;
+        state.score = data.score || 0;
+        state.hintsLeft = data.hintsLeft !== undefined ? data.hintsLeft : 3;
+        state.isGameOver = false;
+        state.isPaused = false;
+
+        // Cập nhật nút độ khó trên giao diện
+        document.querySelectorAll('.diff-tab').forEach(btn => {
+            const isMatch = btn.dataset.diff === state.difficulty;
+            btn.className = `diff-tab flex-1 py-1.5 px-2 rounded-lg text-xs font-bold transition-all ${
+                isMatch ? 'bg-[var(--accent)] text-white shadow-sm' : 'text-[var(--text-muted)] hover:text-[var(--text-main)]'
+            }`;
+        });
+
+        // Cập nhật đồng hồ ngay lập tức
+        const m = String(Math.floor(state.seconds / 60)).padStart(2, '0');
+        const s = String(state.seconds % 60).padStart(2, '0');
+        document.getElementById('timerDisplay').textContent = `${m}:${s}`;
+
+        updateMistakeUI();
+        document.getElementById('scoreDisplay').textContent = state.score.toLocaleString();
+        document.getElementById('hintBadge').textContent = state.hintsLeft;
+        document.getElementById('pauseOverlay').classList.add('hidden');
+        document.getElementById('pauseIcon').className = 'ph-fill ph-pause text-xs';
+
+        renderBoard();
+        updateNumberCounts();
+        startTimer();
+        return true;
+    } catch (e) {
+        return false;
+    }
+}
+
+// Ghi đè khởi chạy: Nếu có ván đang chơi dở thì khôi phục, không tạo ván mới đè lên
+window.onload = function() {
+    const savedTheme = localStorage.getItem('chill_sudoku_theme');
+    if (savedTheme && THEMES.includes(savedTheme)) {
+        setTheme(savedTheme);
+    }
+    initBoardDOM();
+    loadDailyData();
+    if (!loadCurrentBoardProgress()) {
+        startNewGame('easy');
+    }
+};
+
+// Xóa bản lưu cũ khi người chơi chủ động bấm tạo Ván Mới hoặc khi Thắng/Thua
+const _origStartNewGame = startNewGame;
+startNewGame = function(diff) {
+    localStorage.removeItem('chill_sudoku_active_board');
+    _origStartNewGame(diff);
+    saveCurrentBoardProgress();
+};
+
+const _origHandleGameWon = handleGameWon;
+handleGameWon = function() {
+    localStorage.removeItem('chill_sudoku_active_board');
+    _origHandleGameWon();
+};
+
+const _origHandleGameOver = handleGameOver;
+handleGameOver = function() {
+    localStorage.removeItem('chill_sudoku_active_board');
+    _origHandleGameOver();
+};
+
+// Lưu tức thì mỗi giây, mỗi khi chạm màn hình hoặc khi thoát/ẩn ứng dụng
+setInterval(saveCurrentBoardProgress, 1000);
+document.addEventListener('click', () => setTimeout(saveCurrentBoardProgress, 50));
+document.addEventListener('visibilitychange', saveCurrentBoardProgress);
+window.addEventListener('pagehide', saveCurrentBoardProgress);
+
+</script>
+</body>
+</html>
